@@ -1,0 +1,25 @@
+{
+  "name": "flyshare",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
+    "build": "npm run build --prefix frontend",
+    "start": "npm run start --prefix backend"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Riyyan-Siddiqui/FlyShare.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Riyyan-Siddiqui/FlyShare/issues"
+  },
+  "homepage": "https://github.com/Riyyan-Siddiqui/FlyShare#readme",
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
