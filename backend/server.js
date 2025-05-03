@@ -12,11 +12,15 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "*", // Allow all clients on same network
+    origin: "https://fly-share-vh9f.vercel.app", // Vercel frontend URL
+    methods: ["GET", "POST"]
   },
 });
 
-app.use(cors());
+app.use(cors({
+  origin: "https://fly-share-vh9f.vercel.app", // Vercel frontend URL
+}));
+
 app.use(requestIp.mw());
 
 function hashIp(ip) {
