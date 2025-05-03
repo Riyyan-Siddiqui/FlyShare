@@ -41,7 +41,7 @@ export default function Home() {
   useEffect(() => {
     const setup = async () => {
       try {
-        const res = await fetch("https://5364-39-34-144-246.ngrok-free.app"); // 👈 Make sure this matches your backend URL
+        const res = await fetch("https://2f73-39-34-144-246.ngrok-free.app"); // 👈 Make sure this matches your backend URL
         const data = await res.json();
         setRoom(data.room);
         console.log("Joining room:", data.room);
