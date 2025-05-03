@@ -1,8 +1,6 @@
 // socket.ts
 import { io } from "socket.io-client";
 
-const socket = io("https://e446-39-34-144-246.ngrok-free.app", {
-  transports: ["websocket"], // optional but recommended
-});
+const socket = io("https://bdce-39-34-144-246.ngrok-free.app");
 
 export default socket;

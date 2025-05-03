@@ -3,13 +3,22 @@
 import React, { useState, useEffect } from "react";
 import {
   Wifi,
+  Upload,
   Copy,
+  FileText,
+  ImageIcon,
+  Film,
+  File,
+  Download,
   Smartphone,
   Laptop,
   Tablet,
   Clock,
+  X,
   ComputerIcon as Device,
 } from "lucide-react";
+import Image from "next/image";
+import "./globals.css";
 import socket from "../components/Socket";
 
 type Message = {
@@ -26,81 +35,44 @@ export default function Home() {
   ]);
   const [sharedText, setSharedText] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
-  const [room, setRoom] = useState(null);
-  const [loading, setLoading] = useState(true); // To track if room is being fetched
 
-useEffect(() => {
-    const setup = async () => {
-        try {
-            const res = await fetch("https://e446-39-34-144-246.ngrok-free.app");  // Correct URL
-            const data = await res.json();
-            setRoom(data.room);
-            console.log("Joining room:", data.room);
-            socket.emit("join_room", data.room);
-            setLoading(false); // Room has been set
-        } catch (error) {
-            console.error("Failed to get room:", error);
-            setLoading(false); // Failed to get room
-        }
-    };
-
-    setup();
-
-    socket.on("connect", () => {
-        console.log("Connected to Socket.IO server");
-    });
-
-    socket.on("receive_message", (data) => {
-        console.log("Message received:", data);
-        setMessages((prevMessages) => [data, ...prevMessages]);
-    });
-
-    return () => {
-        socket.off("connect");
-        socket.off("receive_message");
-    };
-}, []);
-
-const sendMessage = () => {
-    if (!room) {
-        console.warn("Room is not set yet!");
-        return;
-    }
-
-    if (loading) {
-        console.warn("Waiting for room setup...");
-        return; // Avoid sending message until room is set
-    }
-
-    if (!sharedText.trim()) {
-        console.warn("Shared text is empty!");
-        return;
-    }
-
-    const newMessage = {
-        text: sharedText,
-        time: "Just now",
-        device: "You",
-    };
-
-    console.log("Emitting message:", newMessage.text, "to room:", room);
-    socket.emit("send_message", { room, message: newMessage });
-    setSharedText("");
-};
-
-  // Join the room after it's set
+  // ✅ Now inside the component
   useEffect(() => {
-    if (room) {
-      socket.emit("join_room", room); // Emit 'join_room' only after room is set
-      console.log("Joined room:", room);
-    }
-  }, [room]); // Runs when room is set
+    console.log("Setting up socket listeners...");
+    
+    socket.on("connect", () => {
+      console.log("Connected to Socket.IO server");
+    });
+  
+    socket.on("receive_message", (data: Message) => {
+      console.log("Message received:", data);
+      setMessages((prevMessages) => [data, ...prevMessages]);
+    });
+  
+    return () => {
+      // Clean up the socket listeners when the component unmounts
+      socket.off("connect");
+      socket.off("receive_message");
+    };
+  }, []);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     alert("Copied to clipboard");
   };
 
+  const sendMessage = () => {
+    if (sharedText.trim()) {
+      const newMessage = {
+        text: sharedText,
+        time: "Just now",
+        device: "You",
+      };
+      console.log("Emitting message:", newMessage);  // Add this log
+      socket.emit("send_message", newMessage);
+      setSharedText("");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient">
@@ -121,7 +93,7 @@ const sendMessage = () => {
           <div className="card-content">
             <h2 className="text-xl font-semibold mb-4">Connected Devices</h2>
             <div className="space-y-3">
-              {connectedDevices.map((device: any) => (
+              {connectedDevices.map((device) => (
                 <div
                   key={device.id}
                   className="flex items-center justify-between p-3 bg-muted rounded-lg"
@@ -133,7 +105,9 @@ const sendMessage = () => {
                   <div className="badge badge-success">Active</div>
                 </div>
               ))}
-              <button className="btn btn-outline w-full mt-2">Add Device</button>
+              <button className="btn btn-outline w-full mt-2">
+                Add Device
+              </button>
             </div>
           </div>
         </div>
@@ -210,17 +184,17 @@ const sendMessage = () => {
       </div>
     </div>
   );
+}
 
-  function getDeviceIcon(type: string) {
-    switch (type) {
-      case "phone":
-        return <Smartphone className="icon w-5 h-5" />;
-      case "laptop":
-        return <Laptop className="icon w-5 h-5" />;
-      case "tablet":
-        return <Tablet className="icon w-5 h-5" />;
-      default:
-        return <Device className="icon w-5 h-5" />;
-    }
+function getDeviceIcon(type: string) {
+  switch (type) {
+    case "phone":
+      return <Smartphone className="icon w-5 h-5" />;
+    case "laptop":
+      return <Laptop className="icon w-5 h-5" />;
+    case "tablet":
+      return <Tablet className="icon w-5 h-5" />;
+    default:
+      return <Device className="icon w-5 h-5" />;
   }
 }
