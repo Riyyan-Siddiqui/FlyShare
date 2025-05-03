@@ -74,17 +74,28 @@ export default function Home() {
   };
 
   const sendMessage = () => {
-    if (sharedText.trim() && room) {
-      const newMessage = {
-        text: sharedText,
-        time: "Just now",
-        device: "You",
-      };
-      console.log("Emitting message:", newMessage.text); // Add this log
-      socket.emit("send_message", { room, message: newMessage} );
-      setSharedText("");
+    console.log("clicked share button");
+    if (!room) {
+      console.warn("Room is not set!");
+      return;
     }
-  };
+  
+    if (!sharedText.trim()) {
+      console.warn("Shared text is empty!");
+      return;
+    }
+  
+    const newMessage = {
+      text: sharedText,
+      time: "Just now",
+      device: "You",
+    };
+  
+    console.log("Emitting message:", newMessage.text, "to room:", room);
+    socket.emit("send_message", { room, message: newMessage });
+    setSharedText("");
+    }
+
 
   return (
     <div className="min-h-screen bg-gradient">
@@ -105,7 +116,7 @@ export default function Home() {
           <div className="card-content">
             <h2 className="text-xl font-semibold mb-4">Connected Devices</h2>
             <div className="space-y-3">
-              {connectedDevices.map((device) => (
+              {connectedDevices.map((device: any) => (
                 <div
                   key={device.id}
                   className="flex items-center justify-between p-3 bg-muted rounded-lg"
