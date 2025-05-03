@@ -3,18 +3,11 @@
 import React, { useState, useEffect } from "react";
 import {
   Wifi,
-  Upload,
   Copy,
-  FileText,
-  ImageIcon,
-  Film,
-  File,
-  Download,
   Smartphone,
   Laptop,
   Tablet,
   Clock,
-  X,
   ComputerIcon as Device,
 } from "lucide-react";
 import Image from "next/image";
@@ -35,7 +28,7 @@ export default function Home() {
   ]);
   const [sharedText, setSharedText] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
-  const [room , setRoom] = useState("");
+  const [room, setRoom] = useState("");
 
   // ✅ Now inside the component
   useEffect(() => {
@@ -45,57 +38,61 @@ export default function Home() {
         const data = await res.json();
         setRoom(data.room);
         console.log("Joining room:", data.room);
-        socket.emit("join_room", data.room);
       } catch (error) {
         console.error("Failed to get room:", error);
       }
     };
-  
+
     setup();
-  
+
     socket.on("connect", () => {
       console.log("Connected to Socket.IO server");
     });
-  
+
     socket.on("receive_message", (data: Message) => {
       console.log("Message received:", data);
       setMessages((prevMessages) => [data, ...prevMessages]);
     });
-  
+
     return () => {
       socket.off("connect");
       socket.off("receive_message");
     };
   }, []);
-  
+
+  useEffect(() => {
+    if (room) {
+      socket.emit("join_room", room); // Emit join_room only after room is set
+      console.log("Joined room:", room);
+    }
+  }, [room]); // Only run this effect when room state changes
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     alert("Copied to clipboard");
   };
 
   const sendMessage = () => {
-    console.log("clicked share button");
     if (!room) {
       console.warn("Room is not set!");
       return;
     }
-  
+
     if (!sharedText.trim()) {
       console.warn("Shared text is empty!");
       return;
     }
-  
+
     const newMessage = {
       text: sharedText,
       time: "Just now",
       device: "You",
     };
-  
+
     console.log("Emitting message:", newMessage.text, "to room:", room);
     socket.emit("send_message", { room, message: newMessage });
-    setSharedText("");
-    }
-
+    setSharedText(""); // Clear the text input after sending
+  };
 
   return (
     <div className="min-h-screen bg-gradient">
@@ -128,9 +125,7 @@ export default function Home() {
                   <div className="badge badge-success">Active</div>
                 </div>
               ))}
-              <button className="btn btn-outline w-full mt-2">
-                Add Device
-              </button>
+              <button className="btn btn-outline w-full mt-2">Add Device</button>
             </div>
           </div>
         </div>
@@ -207,17 +202,17 @@ export default function Home() {
       </div>
     </div>
   );
-}
 
-function getDeviceIcon(type: string) {
-  switch (type) {
-    case "phone":
-      return <Smartphone className="icon w-5 h-5" />;
-    case "laptop":
-      return <Laptop className="icon w-5 h-5" />;
-    case "tablet":
-      return <Tablet className="icon w-5 h-5" />;
-    default:
-      return <Device className="icon w-5 h-5" />;
+  function getDeviceIcon(type: string) {
+    switch (type) {
+      case "phone":
+        return <Smartphone className="icon w-5 h-5" />;
+      case "laptop":
+        return <Laptop className="icon w-5 h-5" />;
+      case "tablet":
+        return <Tablet className="icon w-5 h-5" />;
+      default:
+        return <Device className="icon w-5 h-5" />;
+    }
   }
 }
