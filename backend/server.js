@@ -7,7 +7,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server (server, {
   cors: {
-    origin: "fly-share-vh9f.vercel.app", // Allow requests from your frontend
+    origin: "https://4a4a-39-34-144-246.ngrok-free.app", // Allow requests from your frontend
     methods: ["GET", "POST"]
   }
 });
