@@ -26,39 +26,67 @@ export default function Home() {
   ]);
   const [sharedText, setSharedText] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
-  const [room, setRoom] = useState<string>("");
+  const [room, setRoom] = useState(null);
+  const [loading, setLoading] = useState(true); // To track if room is being fetched
 
-  useEffect(() => {
-    // Fetch the room when component mounts
+useEffect(() => {
     const setup = async () => {
-      try {
-        const res = await fetch("https://e446-39-34-144-246.ngrok-free.app"); // Ensure correct URL
-        const data = await res.json();
-        if (data && data.room) {
-          setRoom(data.room); // Set the room once it's fetched
-          console.log("Room fetched:", data.room);
+        try {
+            const res = await fetch("https://e446-39-34-144-246.ngrok-free.app");  // Correct URL
+            const data = await res.json();
+            setRoom(data.room);
+            console.log("Joining room:", data.room);
+            socket.emit("join_room", data.room);
+            setLoading(false); // Room has been set
+        } catch (error) {
+            console.error("Failed to get room:", error);
+            setLoading(false); // Failed to get room
         }
-      } catch (error) {
-        console.error("Error fetching room:", error);
-      }
     };
 
     setup();
 
     socket.on("connect", () => {
-      console.log("Connected to Socket.IO server");
+        console.log("Connected to Socket.IO server");
     });
 
-    socket.on("receive_message", (data: Message) => {
-      console.log("Message received:", data);
-      setMessages((prevMessages) => [data, ...prevMessages]);
+    socket.on("receive_message", (data) => {
+        console.log("Message received:", data);
+        setMessages((prevMessages) => [data, ...prevMessages]);
     });
 
     return () => {
-      socket.off("connect");
-      socket.off("receive_message");
+        socket.off("connect");
+        socket.off("receive_message");
     };
-  }, []); // Empty dependency array to only run once
+}, []);
+
+const sendMessage = () => {
+    if (!room) {
+        console.warn("Room is not set yet!");
+        return;
+    }
+
+    if (loading) {
+        console.warn("Waiting for room setup...");
+        return; // Avoid sending message until room is set
+    }
+
+    if (!sharedText.trim()) {
+        console.warn("Shared text is empty!");
+        return;
+    }
+
+    const newMessage = {
+        text: sharedText,
+        time: "Just now",
+        device: "You",
+    };
+
+    console.log("Emitting message:", newMessage.text, "to room:", room);
+    socket.emit("send_message", { room, message: newMessage });
+    setSharedText("");
+};
 
   // Join the room after it's set
   useEffect(() => {
@@ -73,27 +101,6 @@ export default function Home() {
     alert("Copied to clipboard");
   };
 
-  const sendMessage = () => {
-    if (!room) {
-      console.warn("Room is not set!"); // Handle case when room is not set
-      return;
-    }
-
-    if (!sharedText.trim()) {
-      console.warn("Shared text is empty!"); // Ensure text is not empty
-      return;
-    }
-
-    const newMessage = {
-      text: sharedText,
-      time: "Just now",
-      device: "You",
-    };
-
-    console.log("Emitting message:", newMessage.text, "to room:", room);
-    socket.emit("send_message", { room, message: newMessage });
-    setSharedText(""); // Clear the text input after sending
-  };
 
   return (
     <div className="min-h-screen bg-gradient">
