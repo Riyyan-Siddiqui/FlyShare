@@ -21,5 +21,8 @@
   "homepage": "https://github.com/Riyyan-Siddiqui/FlyShare#readme",
   "devDependencies": {
     "concurrently": "^9.1.2"
+  },
+  "dependencies": {
+    "next": "^15.3.1"
   }
 }

@@ -1,51 +1,56 @@
-import express from 'express';
-import http from 'http';
-import WebSocket, { Server } from 'ws';
-import multer from 'multer';
-import path from 'path';
+import express from "express";
+import http from "http";
+import { Server } from "socket.io";
+import cors from "cors";
+import crypto from "crypto";
+import requestIp from "request-ip";
+require("dotenv").config();
 
-// Initialize Express and HTTP server
+const PORT = 3001;
 const app = express();
 const server = http.createServer(app);
 
-// Initialize WebSocket server
-const wss = new Server({ server });
-
-// Set up file upload directory using multer
-const upload = multer({ dest: 'uploads/' });
-
-// Endpoint for file upload
-app.post('/upload', upload.single('file'), (req, res) => {
-  const filePath = path.join('uploads', req.file?.filename || '');
-  res.json({ link: `http://localhost:3001/${filePath}` });  // Send back the file URL
+const io = new Server(server, {
+  cors: {
+    origin: "*", // Allow all clients on same network
+  },
 });
 
-// Serve the uploaded files
-app.use('/uploads', express.static('uploads'));
+app.use(cors());
+app.use(requestIp.mw());
 
-// WebSocket communication
-wss.on('connection', (ws) => {
-  console.log('New client connected');
+function hashIp(ip) {
+  const secret = process.env.SECRET_SALT; // Replace with your secret key
+  return crypto.createHash("sha256").update(ip + secret).digest("hex");
+}
 
-  // When a message is received from a client, broadcast it to all clients
-  ws.on('message', (message) => {
-    console.log('Received:', message);
+app.get("/", (req, res) => {
+  const clientIp = req.clientIp || req.ip; // Get the client's IP address
+  const hashedIp = hashIp(clientIp); // Hash the IP address
+  console.log(`Client IP: ${clientIp}, Hashed IP: ${hashedIp}`);
+  res.json({ room: hashedIp })
+});
 
-    // Broadcast the message to all connected clients
-    wss.clients.forEach((client) => {
-      if (client !== ws && client.readyState === WebSocket.OPEN) {
-        client.send(message);  // Send the message to other clients
-      }
-    });
+io.on("connection", (socket) => {
+  console.log(`User Connected: ${socket.id}`);
+
+  socket.on("join_room", (room) => {
+    socket.join(room); // Join the room
+    console.log(`User with ID: ${socket.id} joined room: ${room}`);
   });
 
-  // When the client disconnects
-  ws.on('close', () => {
-    console.log('Client disconnected');
+  socket.on("send_message", ({ room, message}) => {
+    // Broadcast message to all clients, including sender
+    console.log(`Message Received: ${message.text}`);
+    io.to(room).emit("receive_message", message);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User Disconnected", socket.id);
   });
 });
 
-// Start the server
-server.listen(3001, () => {
-  console.log('WebSocket server running on http://localhost:3001');
+
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on http://192.168.100.56:${PORT}`);
 });
