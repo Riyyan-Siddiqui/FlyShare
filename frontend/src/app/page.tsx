@@ -10,8 +10,6 @@ import {
   Clock,
   ComputerIcon as Device,
 } from "lucide-react";
-import Image from "next/image";
-import "./globals.css";
 import socket from "../components/Socket";
 
 type Message = {
@@ -28,18 +26,20 @@ export default function Home() {
   ]);
   const [sharedText, setSharedText] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
-  const [room, setRoom] = useState("");
+  const [room, setRoom] = useState<string>("");
 
-  // ✅ Now inside the component
   useEffect(() => {
+    // Fetch the room when component mounts
     const setup = async () => {
       try {
-        const res = await fetch("https://e446-39-34-144-246.ngrok-free.app"); // 👈 Make sure this matches your backend URL
+        const res = await fetch("https://e446-39-34-144-246.ngrok-free.app"); // Ensure correct URL
         const data = await res.json();
-        setRoom(data.room);
-        console.log("Joining room:", data.room);
+        if (data && data.room) {
+          setRoom(data.room); // Set the room once it's fetched
+          console.log("Room fetched:", data.room);
+        }
       } catch (error) {
-        console.error("Failed to get room:", error);
+        console.error("Error fetching room:", error);
       }
     };
 
@@ -58,14 +58,15 @@ export default function Home() {
       socket.off("connect");
       socket.off("receive_message");
     };
-  }, []);
+  }, []); // Empty dependency array to only run once
 
+  // Join the room after it's set
   useEffect(() => {
     if (room) {
-      socket.emit("join_room", room); // Emit join_room only after room is set
+      socket.emit("join_room", room); // Emit 'join_room' only after room is set
       console.log("Joined room:", room);
     }
-  }, [room]); // Only run this effect when room state changes
+  }, [room]); // Runs when room is set
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -74,12 +75,12 @@ export default function Home() {
 
   const sendMessage = () => {
     if (!room) {
-      console.warn("Room is not set!");
+      console.warn("Room is not set!"); // Handle case when room is not set
       return;
     }
 
     if (!sharedText.trim()) {
-      console.warn("Shared text is empty!");
+      console.warn("Shared text is empty!"); // Ensure text is not empty
       return;
     }
 
