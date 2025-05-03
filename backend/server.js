@@ -4,7 +4,8 @@ import { Server } from "socket.io";
 import cors from "cors";
 import crypto from "crypto";
 import requestIp from "request-ip";
-require("dotenv").config();
+import dotenv from 'dotenv';
+dotenv.config();
 
 const PORT = 3001;
 const app = express();
@@ -55,6 +56,6 @@ io.on("connection", (socket) => {
 });
 
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on http://192.168.100.56:${PORT}`);
+server.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
 });
