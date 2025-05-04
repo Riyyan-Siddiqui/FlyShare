@@ -1,4 +1,3 @@
-import express from "express";
 import http from "http";
 import { Server } from "socket.io";
 import cors from "cors";
@@ -7,6 +6,7 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import FtpServer from "ftp-srv";
+import express from "express";
 
 // for __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -65,11 +65,13 @@ app.get('/download/:filename', (req, res) => {
 
 // --- FTP Server Setup ---
 
-const ftpServer = new FtpServer({
-  url: 'ftp://0.tcp.in.ngrok.io:10361', // Use ngrok's URL here
-  pasv_url: '0.tcp.in.ngrok.io:10361',  // Passive connection URL
-  anonymous: true,
-});
+const ftpServer = new FtpServer(
+  'ftp://0.tcp.in.ngrok.io:10361', // ✅ This is a string!
+  {
+    pasv_url: '0.tcp.in.ngrok.io:10361',
+    anonymous: true,
+  }
+);
 
 ftpServer.on('login', ({connection, username, password}, resolve, reject) => {
   console.log(`FTP client connected: ${username}`);
