@@ -36,7 +36,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ setFiles }) => {
     formData.append('file', file);
 
     try {
-      const response = await axios.post('http://localhost:3001/upload', formData, {
+      const response = await axios.post('https://ecb5-39-34-147-234.ngrok-free.app/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },

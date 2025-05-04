@@ -216,7 +216,7 @@ export default function Home() {
 
   const downloadFile = (filename: string) => {
     const link = document.createElement("a");
-    link.href = `http://localhost:3001/download/${filename}`;
+    link.href = `https://ecb5-39-34-147-234.ngrok-free.app/download/${filename}`;
     link.download = filename;
     link.click();
   };
