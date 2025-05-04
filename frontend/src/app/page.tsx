@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Wifi,
   Upload,
@@ -16,8 +16,9 @@ import {
   Clock,
   X,
   ComputerIcon as Device,
+  AlertCircle,
+  User,
 } from "lucide-react";
-import Image from "next/image";
 import "./globals.css";
 import socket from "../components/Socket";
 import FileUpload from "./FileUpload";
@@ -26,92 +27,228 @@ type Message = {
   text: string;
   time: string;
   device: string;
+  sender: string;
+};
+
+type FileType = {
+  id: number;
+  name: string;
+  size: string;
+  type: string;
+  timestamp: string;
+  sender: string;
+};
+
+type DeviceInfo = {
+  id: string;
+  name: string;
+  type: string;
 };
 
 export default function Home() {
-  const [connected, setConnected] = useState(true);
-  const [connectedDevices, setConnectedDevices] = useState([
-    { id: 1, name: "iPhone 13", type: "phone" },
-    { id: 2, name: "MacBook Pro", type: "laptop" },
-  ]);
+  const [connected, setConnected] = useState(false);
+  const [connectedDevices, setConnectedDevices] = useState<DeviceInfo[]>([]);
   const [sharedText, setSharedText] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
+  const [activeTab, setActiveTab] = useState("files");
+  const [files, setFiles] = useState<FileType[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const [socketConnected, setSocketConnected] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [networkId, setNetworkId] = useState<string | null>(null);
+  const [deviceName, setDeviceName] = useState("");
+  const [deviceType, setDeviceType] = useState("laptop");
+  const [showDevicePrompt, setShowDevicePrompt] = useState(true);
 
-  // ✅ Now inside the component
+  // Refs for elements
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Generate a device name if not already set
+  useEffect(() => {
+    if (!deviceName) {
+      const deviceTypes = ["Phone", "Laptop", "Tablet", "Computer"];
+      const randomType = deviceTypes[Math.floor(Math.random() * deviceTypes.length)];
+      const randomNum = Math.floor(Math.random() * 1000);
+      setDeviceName(`${randomType}-${randomNum}`);
+    }
+  }, [deviceName]);
+
+  // Initialize socket connection
   useEffect(() => {
     console.log("Setting up socket listeners...");
 
+    // Connection events
     socket.on("connect", () => {
       console.log("Connected to Socket.IO server");
+      setSocketConnected(true);
+      setError(null);
+      
+      // If we already have device info, register the device
+      if (deviceName && !showDevicePrompt) {
+        registerDevice();
+      }
     });
 
+    socket.on("disconnect", () => {
+      console.log("Disconnected from Socket.IO server");
+      setSocketConnected(false);
+      setError("Connection to server lost. Trying to reconnect...");
+      setConnected(false);
+    });
+
+    socket.on("connect_error", (err) => {
+      console.error("Socket connection error:", err);
+      setSocketConnected(false);
+      setError("Failed to connect to server. Please check your network.");
+      setConnected(false);
+    });
+
+    // Message events
     socket.on("receive_message", (data: Message) => {
       console.log("Message received:", data);
       setMessages((prevMessages) => [data, ...prevMessages]);
     });
 
+    // File events
+    socket.on("file_shared", (fileData: any) => {
+      console.log("File shared event:", fileData);
+      
+      // Convert to our file format
+      const newFile: FileType = {
+        id: fileData.id || Date.now(),
+        name: fileData.name,
+        size: formatFileSize(fileData.size),
+        type: getFileType(fileData.name),
+        timestamp: fileData.timestamp ? new Date(fileData.timestamp).toLocaleTimeString() : "Just now",
+        sender: fileData.sender || "Another device",
+      };
+      
+      setFiles((prevFiles) => [newFile, ...prevFiles]);
+    });
+
+    // Network room events
+    socket.on("device_list", (devices: DeviceInfo[]) => {
+      console.log("Device list updated:", devices);
+      setConnectedDevices(devices);
+      setConnected(true);
+    });
+
+    socket.on("device_left", (data: {id: string}) => {
+      console.log("Device left:", data.id);
+      setConnectedDevices(prev => prev.filter(device => device.id !== data.id));
+    });
+
+    socket.on("file_list", (fileList: any[]) => {
+      console.log("File list received:", fileList);
+      // Convert to our file format
+      const formattedFiles = fileList.map(file => ({
+        id: file.id || Date.now() + Math.random(),
+        name: file.name,
+        size: formatFileSize(file.size),
+        type: getFileType(file.name),
+        timestamp: file.timestamp ? new Date(file.timestamp).toLocaleTimeString() : "Unknown",
+        sender: file.sender || "Server",
+      }));
+      
+      setFiles(formattedFiles);
+    });
+
     return () => {
       // Clean up the socket listeners when the component unmounts
       socket.off("connect");
+      socket.off("disconnect");
+      socket.off("connect_error");
       socket.off("receive_message");
+      socket.off("file_shared");
+      socket.off("device_list");
+      socket.off("device_left");
+      socket.off("file_list");
     };
-  }, []);
+  }, [deviceName, showDevicePrompt]);
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    alert("Copied to clipboard");
+  // Register device with server
+  const registerDevice = () => {
+    if (!deviceName.trim()) {
+      setError("Please enter a device name");
+      return;
+    }
+
+    const deviceInfo = {
+      name: deviceName,
+      type: deviceType
+    };
+
+    console.log("Registering device:", deviceInfo);
+    socket.emit("register_device", deviceInfo);
+    
+    // Store device name in local storage
+    localStorage.setItem("deviceName", deviceName);
+    localStorage.setItem("deviceType", deviceType);
+    
+    setShowDevicePrompt(false);
   };
 
+  // Handle device form submission
+  const handleDeviceSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    registerDevice();
+  };
+
+  // Helper function to determine file type
+  const getFileType = (filename: string) => {
+    const ext = filename.split('.').pop()?.toLowerCase() || '';
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)) return 'image';
+    if (['mp4', 'webm', 'avi', 'mov', 'mkv'].includes(ext)) return 'video';
+    if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext)) return 'document';
+    if (['txt', 'md', 'rtf', 'csv', 'json'].includes(ext)) return 'text';
+    return 'file';
+  };
+
+  // Helper function to format file size
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  // Copy text to clipboard
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+      .then(() => {
+        // Show success message
+        const tempAlert = document.createElement('div');
+        tempAlert.className = 'copy-alert';
+        tempAlert.innerText = 'Copied to clipboard';
+        document.body.appendChild(tempAlert);
+        setTimeout(() => document.body.removeChild(tempAlert), 2000);
+      })
+      .catch(err => {
+        console.error('Error copying text: ', err);
+        setError('Failed to copy to clipboard');
+      });
+  };
+
+  // Send text message
   const sendMessage = () => {
     if (sharedText.trim()) {
       const newMessage = {
         text: sharedText,
-        time: "Just now",
-        device: "You",
+        time: new Date().toLocaleTimeString(),
+        device: deviceName,
       };
-      console.log("Emitting message:", newMessage); // Add this log
+      console.log("Emitting message:", newMessage);
       socket.emit("send_message", newMessage);
       setSharedText("");
+      
+      // Clear the textarea and focus it
+      if (textAreaRef.current) {
+        textAreaRef.current.focus();
+      }
     }
   };
 
-  const [activeTab, setActiveTab] = useState("files");
-  const [files, setFiles] = useState([
-    {
-      id: 1,
-      name: "Project Presentation.pdf",
-      size: "2.4 MB",
-      type: "document",
-      timestamp: "Just now",
-      sender: "MacBook Pro",
-    },
-    {
-      id: 2,
-      name: "Vacation Photo.jpg",
-      size: "3.8 MB",
-      type: "image",
-      timestamp: "2 minutes ago",
-      sender: "iPhone 13",
-    },
-    {
-      id: 3,
-      name: "Meeting Notes.txt",
-      size: "12 KB",
-      type: "text",
-      timestamp: "5 minutes ago",
-      sender: "MacBook Pro",
-    },
-    {
-      id: 4,
-      name: "Product Demo.mp4",
-      size: "18.2 MB",
-      type: "video",
-      timestamp: "10 minutes ago",
-      sender: "iPhone 13",
-    },
-  ]);
-  const [isDragging, setIsDragging] = useState(false);
-
+  // Handle drag and drop for files
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
@@ -125,67 +262,27 @@ export default function Home() {
     e.preventDefault();
     setIsDragging(false);
 
-    // Simulate file upload
-    if (e.dataTransfer.files.length > 0) {
-      const newFiles = Array.from(e.dataTransfer.files).map((file, index) => {
-        let type = "file";
-        if (file.type.includes("image")) type = "image";
-        else if (file.type.includes("video")) type = "video";
-        else if (
-          file.type.includes("text") ||
-          file.type.includes("pdf") ||
-          file.type.includes("document")
-        )
-          type = "document";
-
-        return {
-          id: files.length + index + 1,
-          name: file.name,
-          size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-          type,
-          timestamp: "Just now",
-          sender: "You",
-        };
-      });
-
-      setFiles([...newFiles, ...files]);
-      alert(`${newFiles.length} file(s) shared with all connected devices`);
+    // Let the FileUpload component handle this
+    if (activeTab === "files" && e.dataTransfer.files.length > 0) {
+      if (fileInputRef.current) {
+        fileInputRef.current.files = e.dataTransfer.files;
+        const event = new Event('change', { bubbles: true });
+        fileInputRef.current.dispatchEvent(event);
+      }
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const newFiles = Array.from(e.target.files).map((file, index) => {
-        let type = "file";
-        if (file.type.includes("image")) type = "image";
-        else if (file.type.includes("video")) type = "video";
-        else if (
-          file.type.includes("text") ||
-          file.type.includes("pdf") ||
-          file.type.includes("document")
-        )
-          type = "document";
-
-        return {
-          id: files.length + index + 1,
-          name: file.name,
-          size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-          type,
-          timestamp: "Just now",
-          sender: "You",
-        };
-      });
-
-      setFiles([...newFiles, ...files]);
-      alert(`${newFiles.length} file(s) shared with all connected devices`);
-    }
-  };
-
+  // Remove file from list
   const removeFile = (id: number) => {
     setFiles(files.filter((file) => file.id !== id));
-    alert("The file has been removed from shared files");
   };
 
+  // Download file
+  const downloadFile = (filename: string) => {
+    window.open(`https://6647-39-34-147-234.ngrok-free.app/download/${filename}`, '_blank');
+  };
+
+  // Get file icon based on file type
   const getFileIcon = (type: string) => {
     switch (type) {
       case "image":
@@ -201,6 +298,7 @@ export default function Home() {
     }
   };
 
+  // Get device icon based on device type
   const getDeviceIcon = (type: string) => {
     switch (type) {
       case "phone":
@@ -214,57 +312,133 @@ export default function Home() {
     }
   };
 
-  const downloadFile = (filename: string) => {
-    const link = document.createElement("a");
-    link.href = `https://ecb5-39-34-147-234.ngrok-free.app/download/${filename}`;
-    link.download = filename;
-    link.click();
-  };
+  // Device registration modal
+  const DeviceRegistrationModal = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full">
+        <h2 className="text-xl font-semibold mb-4">Welcome to Fly Share</h2>
+        <p className="text-muted mb-4">
+          Please enter a name for your device to connect to the local network
+        </p>
+        
+        <form onSubmit={handleDeviceSubmit}>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="deviceName" className="block text-sm font-medium mb-1">
+                Device Name
+              </label>
+              <input
+                type="text"
+                id="deviceName"
+                className="input w-full"
+                value={deviceName}
+                onChange={(e) => setDeviceName(e.target.value)}
+                placeholder="My Device"
+                required
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="deviceType" className="block text-sm font-medium mb-1">
+                Device Type
+              </label>
+              <select
+                id="deviceType"
+                className="select w-full"
+                value={deviceType}
+                onChange={(e) => setDeviceType(e.target.value)}
+              >
+                <option value="phone">Phone</option>
+                <option value="laptop">Laptop</option>
+                <option value="tablet">Tablet</option>
+                <option value="desktop">Desktop</option>
+              </select>
+            </div>
+            
+            <button type="submit" className="btn btn-primary w-full">
+              Join Network
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 
+  // Main app content
   return (
     <div className="min-h-screen bg-gradient">
+      {showDevicePrompt && <DeviceRegistrationModal />}
+      
       <div className="container max-w-5xl py-8">
         {/* Header */}
         <header className="flex flex-col items-center justify-center text-center mb-8">
           <div className="flex items-center gap-2 mb-2">
-            <Wifi className="icon icon-blue w-8 h-8" />
+            <Wifi className={`icon icon-blue w-8 h-8 ${socketConnected ? 'text-green-500' : 'text-red-500'}`} />
             <h1 className="text-3xl font-bold">Fly Share</h1>
           </div>
           <p className="text-muted max-w-md">
             Share files and text instantly with devices on the same WiFi network
           </p>
+          {error && (
+            <div className="mt-4 p-3 bg-red-100 text-red-700 rounded-lg flex items-center">
+              <AlertCircle className="w-5 h-5 mr-2" />
+              <span>{error}</span>
+            </div>
+          )}
         </header>
 
         {/* Connected Devices */}
         <div className="card mb-8">
           <div className="card-content">
-            <h2 className="text-xl font-semibold mb-4">Connected Devices</h2>
+            <h2 className="text-xl font-semibold mb-4">
+              Devices on Your WiFi Network {connected && `(${connectedDevices.length})`}
+            </h2>
+            
             <div className="space-y-3">
-              {connectedDevices.map((device) => (
-                <div
-                  key={device.id}
-                  className="flex items-center justify-between p-3 bg-muted rounded-lg"
-                >
-                  <div className="flex items-center gap-3">
-                    {getDeviceIcon(device.type)}
-                    <span>{device.name}</span>
+              {connectedDevices.length > 0 ? (
+                connectedDevices.map((device) => (
+                  <div
+                    key={device.id}
+                    className="flex items-center justify-between p-3 bg-muted rounded-lg"
+                  >
+                    <div className="flex items-center gap-3">
+                      {getDeviceIcon(device.type)}
+                      <span>{device.name}</span>
+                      {device.id === socket.id && (
+                        <span className="text-xs text-muted">(You)</span>
+                      )}
+                    </div>
+                    <div className="badge badge-success">Active</div>
                   </div>
-                  <div className="badge badge-success">Active</div>
+                ))
+              ) : (
+                <div className="text-center p-8 border border-dashed rounded-lg">
+                  <p className="text-muted">
+                    {socketConnected 
+                      ? "No other devices connected yet" 
+                      : "Connecting to network..."}
+                  </p>
                 </div>
-              ))}
-              <button className="btn btn-outline w-full mt-2">
-                Add Device
-              </button>
+              )}
+              
+              {connected && (
+                <div className="flex justify-between items-center mt-4">
+                  <p className="text-sm text-muted">
+                    <User className="inline w-4 h-4 mr-1" />
+                    You are connected as <strong>{deviceName}</strong>
+                  </p>
+                  <button 
+                    className="btn btn-outline btn-sm"
+                    onClick={() => setShowDevicePrompt(true)}
+                  >
+                    Change Device
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* File Upload */}
-        <div className="card mb-8">
-          <div className="card-content">
-            <FileUpload setFiles={setFiles} />
-          </div>
-        </div>
 
         {/* Tabs */}
         <div className="tabs">
@@ -291,40 +465,10 @@ export default function Home() {
           >
             <div className="card">
               <div className="card-content">
-                <div
-                  className={`dropzone ${isDragging ? "active" : ""}`}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                >
-                  <div className="flex flex-col items-center justify-center text-center">
-                    <Upload className="icon text-muted w-10 h-10 mb-4" />
-                    <h3 className="text-lg font-medium mb-2">
-                      Drag & Drop Files Here
-                    </h3>
-                    <p className="text-muted mb-4 max-w-md">
-                      Drop your files here to instantly share them with all
-                      connected devices
-                    </p>
-                    <div className="flex gap-3">
-                      <label htmlFor="file-upload">
-                        <span className="btn btn-primary">Select Files</span>
-                        <input
-                          id="file-upload"
-                          type="file"
-                          multiple
-                          className="hidden"
-                          onChange={handleFileUpload}
-                        />
-                      </label>
-                      <button className="btn btn-outline">
-                        Paste from Clipboard
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                {/* File Upload Component */}
+                <FileUpload setFiles={setFiles} />
 
-                <h3 className="text-lg font-medium mb-4 mt-2">Shared Files</h3>
+                <h3 className="text-lg font-medium mb-4 mt-8">Shared Files</h3>
 
                 {files.length > 0 ? (
                   <div className="space-y-3">
@@ -385,10 +529,17 @@ export default function Home() {
                 <h3 className="text-lg font-medium mb-4">Share Text</h3>
                 <div className="space-y-4">
                   <textarea
+                    ref={textAreaRef}
                     className="textarea min-h-32"
                     placeholder="Type or paste text to share with connected devices..."
                     value={sharedText}
                     onChange={(e) => setSharedText(e.target.value)}
+                    onKeyDown={(e) => {
+                      // Send on Ctrl+Enter or Cmd+Enter
+                      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                        sendMessage();
+                      }
+                    }}
                   />
                   <div className="flex justify-between">
                     <button
@@ -397,7 +548,11 @@ export default function Home() {
                     >
                       Clear
                     </button>
-                    <button className="btn btn-primary" onClick={sendMessage}>
+                    <button 
+                      className="btn btn-primary" 
+                      onClick={sendMessage}
+                      disabled={!sharedText.trim()}
+                    >
                       Share Text
                     </button>
                   </div>
@@ -407,27 +562,33 @@ export default function Home() {
 
                 <h3 className="text-lg font-medium mb-4">Received Text</h3>
                 <div className="space-y-3">
-                  {messages.map((msg, index) => (
-                    <div key={index} className="text-message">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="badge badge-outline">
-                          <Clock className="icon w-3 h-3 mr-1" />
-                          {msg.time}
+                  {messages.length > 0 ? (
+                    messages.map((msg, index) => (
+                      <div key={index} className="text-message">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="badge badge-outline">
+                            <Clock className="icon w-3 h-3 mr-1" />
+                            {msg.time}
+                          </div>
+                          <span className="text-xs text-muted">
+                            From: {msg.device}
+                          </span>
                         </div>
-                        <span className="text-xs text-muted">
-                          From: {msg.device}
-                        </span>
+                        <p className="mb-3">{msg.text}</p>
+                        <button
+                          className="btn btn-outline btn-sm text-xs"
+                          onClick={() => copyToClipboard(msg.text)}
+                        >
+                          <Copy className="icon w-3 h-3 mr-1" />
+                          Copy to clipboard
+                        </button>
                       </div>
-                      <p className="mb-3">{msg.text}</p>
-                      <button
-                        className="btn btn-outline btn-sm text-xs"
-                        onClick={() => copyToClipboard(msg.text)}
-                      >
-                        <Copy className="icon w-3 h-3 mr-1" />
-                        Copy to clipboard
-                      </button>
+                    ))
+                  ) : (
+                    <div className="text-center p-8 border border-dashed rounded-lg">
+                      <p className="text-muted">No messages received yet</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             </div>
