@@ -279,7 +279,7 @@ export default function Home() {
 
   // Download file
   const downloadFile = (filename: string) => {
-    window.open(`https://6647-39-34-147-234.ngrok-free.app/download/${filename}`, '_blank');
+    window.open(`https://1fbe-110-38-229-3.ngrok-free.app/download/${filename}`, '_blank');
   };
 
   // Get file icon based on file type
