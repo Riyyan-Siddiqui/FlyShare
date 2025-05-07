@@ -68,7 +68,8 @@ export default function Home() {
   useEffect(() => {
     if (!deviceName) {
       const deviceTypes = ["Phone", "Laptop", "Tablet", "Computer"];
-      const randomType = deviceTypes[Math.floor(Math.random() * deviceTypes.length)];
+      const randomType =
+        deviceTypes[Math.floor(Math.random() * deviceTypes.length)];
       const randomNum = Math.floor(Math.random() * 1000);
       setDeviceName(`${randomType}-${randomNum}`);
     }
@@ -83,7 +84,7 @@ export default function Home() {
       console.log("Connected to Socket.IO server");
       setSocketConnected(true);
       setError(null);
-      
+
       // If we already have device info, register the device
       if (deviceName && !showDevicePrompt) {
         registerDevice();
@@ -113,17 +114,19 @@ export default function Home() {
     // File events
     socket.on("file_shared", (fileData: any) => {
       console.log("File shared event:", fileData);
-      
+
       // Convert to our file format
       const newFile: FileType = {
         id: fileData.id || Date.now(),
         name: fileData.name,
         size: formatFileSize(fileData.size),
         type: getFileType(fileData.name),
-        timestamp: fileData.timestamp ? new Date(fileData.timestamp).toLocaleTimeString() : "Just now",
+        timestamp: fileData.timestamp
+          ? new Date(fileData.timestamp).toLocaleTimeString()
+          : "Just now",
         sender: fileData.sender || "Another device",
       };
-      
+
       setFiles((prevFiles) => [newFile, ...prevFiles]);
     });
 
@@ -134,23 +137,27 @@ export default function Home() {
       setConnected(true);
     });
 
-    socket.on("device_left", (data: {id: string}) => {
+    socket.on("device_left", (data: { id: string }) => {
       console.log("Device left:", data.id);
-      setConnectedDevices(prev => prev.filter(device => device.id !== data.id));
+      setConnectedDevices((prev) =>
+        prev.filter((device) => device.id !== data.id)
+      );
     });
 
     socket.on("file_list", (fileList: any[]) => {
       console.log("File list received:", fileList);
       // Convert to our file format
-      const formattedFiles = fileList.map(file => ({
+      const formattedFiles = fileList.map((file) => ({
         id: file.id || Date.now() + Math.random(),
         name: file.name,
         size: formatFileSize(file.size),
         type: getFileType(file.name),
-        timestamp: file.timestamp ? new Date(file.timestamp).toLocaleTimeString() : "Unknown",
+        timestamp: file.timestamp
+          ? new Date(file.timestamp).toLocaleTimeString()
+          : "Unknown",
         sender: file.sender || "Server",
       }));
-      
+
       setFiles(formattedFiles);
     });
 
@@ -176,16 +183,16 @@ export default function Home() {
 
     const deviceInfo = {
       name: deviceName,
-      type: deviceType
+      type: deviceType,
     };
 
     console.log("Registering device:", deviceInfo);
     socket.emit("register_device", deviceInfo);
-    
+
     // Store device name in local storage
     localStorage.setItem("deviceName", deviceName);
     localStorage.setItem("deviceType", deviceType);
-    
+
     setShowDevicePrompt(false);
   };
 
@@ -197,12 +204,14 @@ export default function Home() {
 
   // Helper function to determine file type
   const getFileType = (filename: string) => {
-    const ext = filename.split('.').pop()?.toLowerCase() || '';
-    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)) return 'image';
-    if (['mp4', 'webm', 'avi', 'mov', 'mkv'].includes(ext)) return 'video';
-    if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext)) return 'document';
-    if (['txt', 'md', 'rtf', 'csv', 'json'].includes(ext)) return 'text';
-    return 'file';
+    const ext = filename.split(".").pop()?.toLowerCase() || "";
+    if (["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext))
+      return "image";
+    if (["mp4", "webm", "avi", "mov", "mkv"].includes(ext)) return "video";
+    if (["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx"].includes(ext))
+      return "document";
+    if (["txt", "md", "rtf", "csv", "json"].includes(ext)) return "text";
+    return "file";
   };
 
   // Helper function to format file size
@@ -214,18 +223,19 @@ export default function Home() {
 
   // Copy text to clipboard
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
+    navigator.clipboard
+      .writeText(text)
       .then(() => {
         // Show success message
-        const tempAlert = document.createElement('div');
-        tempAlert.className = 'copy-alert';
-        tempAlert.innerText = 'Copied to clipboard';
+        const tempAlert = document.createElement("div");
+        tempAlert.className = "copy-alert";
+        tempAlert.innerText = "Copied to clipboard";
         document.body.appendChild(tempAlert);
         setTimeout(() => document.body.removeChild(tempAlert), 2000);
       })
-      .catch(err => {
-        console.error('Error copying text: ', err);
-        setError('Failed to copy to clipboard');
+      .catch((err) => {
+        console.error("Error copying text: ", err);
+        setError("Failed to copy to clipboard");
       });
   };
 
@@ -240,7 +250,7 @@ export default function Home() {
       console.log("Emitting message:", newMessage);
       socket.emit("send_message", newMessage);
       setSharedText("");
-      
+
       // Clear the textarea and focus it
       if (textAreaRef.current) {
         textAreaRef.current.focus();
@@ -266,7 +276,7 @@ export default function Home() {
     if (activeTab === "files" && e.dataTransfer.files.length > 0) {
       if (fileInputRef.current) {
         fileInputRef.current.files = e.dataTransfer.files;
-        const event = new Event('change', { bubbles: true });
+        const event = new Event("change", { bubbles: true });
         fileInputRef.current.dispatchEvent(event);
       }
     }
@@ -276,10 +286,12 @@ export default function Home() {
   const removeFile = (id: number) => {
     setFiles(files.filter((file) => file.id !== id));
   };
-
   // Download file
   const downloadFile = (filename: string) => {
-    window.open(`https://1fbe-110-38-229-3.ngrok-free.app/download/${filename}`, '_blank');
+    window.open(
+      `https://5e0f-119-155-207-98.ngrok-free.app/download/${filename}`,
+      "_blank"
+    );
   };
 
   // Get file icon based on file type
@@ -320,11 +332,14 @@ export default function Home() {
         <p className="text-muted mb-4">
           Please enter a name for your device to connect to the local network
         </p>
-        
+
         <form onSubmit={handleDeviceSubmit}>
           <div className="space-y-4">
             <div>
-              <label htmlFor="deviceName" className="block text-sm font-medium mb-1">
+              <label
+                htmlFor="deviceName"
+                className="block text-sm font-medium mb-1"
+              >
                 Device Name
               </label>
               <input
@@ -337,9 +352,12 @@ export default function Home() {
                 required
               />
             </div>
-            
+
             <div>
-              <label htmlFor="deviceType" className="block text-sm font-medium mb-1">
+              <label
+                htmlFor="deviceType"
+                className="block text-sm font-medium mb-1"
+              >
                 Device Type
               </label>
               <select
@@ -354,7 +372,7 @@ export default function Home() {
                 <option value="desktop">Desktop</option>
               </select>
             </div>
-            
+
             <button type="submit" className="btn btn-primary w-full">
               Join Network
             </button>
@@ -368,12 +386,16 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient">
       {showDevicePrompt && <DeviceRegistrationModal />}
-      
+
       <div className="container max-w-5xl py-8">
         {/* Header */}
         <header className="flex flex-col items-center justify-center text-center mb-8">
           <div className="flex items-center gap-2 mb-2">
-            <Wifi className={`icon icon-blue w-8 h-8 ${socketConnected ? 'text-green-500' : 'text-red-500'}`} />
+            <Wifi
+              className={`icon icon-blue w-8 h-8 ${
+                socketConnected ? "text-green-500" : "text-red-500"
+              }`}
+            />
             <h1 className="text-3xl font-bold">Fly Share</h1>
           </div>
           <p className="text-muted max-w-md">
@@ -391,9 +413,10 @@ export default function Home() {
         <div className="card mb-8">
           <div className="card-content">
             <h2 className="text-xl font-semibold mb-4">
-              Devices on Your WiFi Network {connected && `(${connectedDevices.length})`}
+              Devices on Your WiFi Network{" "}
+              {connected && `(${connectedDevices.length})`}
             </h2>
-            
+
             <div className="space-y-3">
               {connectedDevices.length > 0 ? (
                 connectedDevices.map((device) => (
@@ -414,20 +437,20 @@ export default function Home() {
               ) : (
                 <div className="text-center p-8 border border-dashed rounded-lg">
                   <p className="text-muted">
-                    {socketConnected 
-                      ? "No other devices connected yet" 
+                    {socketConnected
+                      ? "No other devices connected yet"
                       : "Connecting to network..."}
                   </p>
                 </div>
               )}
-              
+
               {connected && (
                 <div className="flex justify-between items-center mt-4">
                   <p className="text-sm text-muted">
                     <User className="inline w-4 h-4 mr-1" />
                     You are connected as <strong>{deviceName}</strong>
                   </p>
-                  <button 
+                  <button
                     className="btn btn-outline btn-sm"
                     onClick={() => setShowDevicePrompt(true)}
                   >
@@ -438,7 +461,6 @@ export default function Home() {
             </div>
           </div>
         </div>
-
 
         {/* Tabs */}
         <div className="tabs">
@@ -536,7 +558,7 @@ export default function Home() {
                     onChange={(e) => setSharedText(e.target.value)}
                     onKeyDown={(e) => {
                       // Send on Ctrl+Enter or Cmd+Enter
-                      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
                         sendMessage();
                       }
                     }}
@@ -548,8 +570,8 @@ export default function Home() {
                     >
                       Clear
                     </button>
-                    <button 
-                      className="btn btn-primary" 
+                    <button
+                      className="btn btn-primary"
                       onClick={sendMessage}
                       disabled={!sharedText.trim()}
                     >

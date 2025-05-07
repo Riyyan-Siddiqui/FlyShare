@@ -47,7 +47,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ setFiles }) => {
         formData.append('file', file);
         
         // Upload with progress tracking
-        await axios.post('https://1fbe-110-38-229-3.ngrok-free.app/upload', formData, {
+        await axios.post('https://5e0f-119-155-207-98.ngrok-free.app/upload', formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
