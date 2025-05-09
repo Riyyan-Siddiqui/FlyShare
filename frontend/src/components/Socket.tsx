@@ -1,7 +1,7 @@
 import { io } from "socket.io-client";
 
 // Create socket instance with auto-reconnect
-const socket = io("https://5e0f-119-155-207-98.ngrok-free.app", {
+const socket = io(process.env.NEXT_PUBLIC_BACKEND_URL as string, {
   reconnectionAttempts: 5,
   reconnectionDelay: 1000,
   timeout: 10000,

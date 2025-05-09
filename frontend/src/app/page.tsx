@@ -289,7 +289,7 @@ export default function Home() {
   // Download file
   const downloadFile = (filename: string) => {
     window.open(
-      `https://5e0f-119-155-207-98.ngrok-free.app/download/${filename}`,
+      `${process.env.NEXT_PUBLIC_BACKEND_URL as string}/download/${filename}`,
       "_blank"
     );
   };
