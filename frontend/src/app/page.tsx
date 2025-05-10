@@ -289,7 +289,7 @@ export default function Home() {
   // Download file
   const downloadFile = (filename: string) => {
     window.open(
-      `${process.env.NEXT_PUBLIC_BACKEND_URL as string}/download/${filename}`,
+      `${process.env.NEXT_PUBLIC_BACKEND_URL as string}download/${filename}`,
       "_blank"
     );
   };
